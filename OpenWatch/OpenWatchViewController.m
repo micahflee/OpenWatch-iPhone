@@ -71,15 +71,34 @@
     NSURL *url = [[[info objectForKey:UIImagePickerControllerMediaURL] copy] autorelease];
     ALAssetsLibrary* library = [[[ALAssetsLibrary alloc] init] autorelease];
     [library writeVideoAtPathToSavedPhotosAlbum:url completionBlock:^(NSURL *assetURL, NSError *error){
-        NSLog(@"Video saved");
+        NSLog(@"Video saved to: %@", assetURL);
         
         // remove the camera view
-        if(imagePickerController) {
+        if( imagePickerController ) {
             [imagePickerController.view removeFromSuperview];
             [imagePickerController release];
         }
         
+
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://openwatch.net/uploadnocaptha"]];
+        [request setTimeoutInterval:60.0f];
+        
+        NSData *data = [NSData dataWithContentsOfURL:assetURL];
+        [request setHTTPMethod:@"POST"];	
+        [request setValue:@"multipart/form-data; boundary=0xKhTmLbOuNdArY" forHTTPHeaderField:@"Content-Type"];
+        
+        NSMutableData *postData = [NSMutableData dataWithCapacity:[data length] +512];
+        [postData appendData: [@"--0xKhTmLbOuNdArY\r\n" dataUsingEncoding:NSUTF8StringEncoding]];	
+        [postData appendData: [@"Content-Disposition: form-data; name=\"id_rec_file\"; filename=\"id_rec_file\"\r\n\r\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        [postData appendData:data];
+        [postData appendData: [@"\r\n--0xKhTmLbOuNdArY--\r\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        [request setHTTPBody:postData];
+
+        [NSURLConnection connectionWithRequest:request delegate:self];
+        
+        
         // alert that it's been saved
+        /*
         UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Video Saved"
                                                         message:@"Your video has been saved to your gallery. Stay tuned for updates to post video to the OpenWatch website."
 													   delegate:nil
@@ -87,8 +106,10 @@
 											  otherButtonTitles:nil];
         [alert autorelease];
         [alert show];
+         */
     }];
 }
+
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
     NSLog(@"imagePickerControllerDidCancel");
@@ -97,6 +118,33 @@
         [imagePickerController release];
     }
 }
+
+
+#pragma mark -
+#pragma mark NSURLConnectionDelegate
+
+
+- (void)connection:(NSURLConnection *)connection didSendBodyData:(NSInteger)bytesWritten totalBytesWritten:(NSInteger)totalBytesWritten totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite {
+    NSLog(@"didSendBodyData");
+}
+
+
+- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
+    NSLog(@"didReceiveData");    
+}
+
+
+- (void)connectionDidFinishLoading:(NSURLConnection *)connection {
+    NSLog(@"connectionDidFinishLoading");    
+}
+
+
+- (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
+    NSLog(@"didFailWithError:%@", error);    
+}
+
+
+#pragma mark -
 
 
 - (void)dealloc {
